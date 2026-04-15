@@ -182,36 +182,69 @@ function YearView({ year, events, onEventClick }) {
     });
   }
 
+  function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  }
+
   function renderMiniMonth(m) {
     const days = daysInMonth(year, m);
     const firstDay = (new Date(year, m, 1).getDay() + 6) % 7; // Mo=0
-    const cells = [];
-    for (let i = 0; i < firstDay; i++) cells.push(<div key={`e${i}`} className="yp-mini-day empty" />);
+    const rows = [];
+    let currentRow = [];
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) currentRow.push(null);
+
     for (let d = 1; d <= days; d++) {
-      const dayEvents = getEventsForDay(year, m, d);
-      const today = new Date();
-      const isToday = today.getFullYear() === year && today.getMonth() === m && today.getDate() === d;
-      cells.push(
-        <div key={d} className={`yp-mini-day${isToday ? ' today' : ''}${dayEvents.length ? ' has-events' : ''}`}>
-          <span className="yp-mini-num">{d}</span>
-          {dayEvents.length > 0 && (
-            <div className="yp-mini-dots">
-              {dayEvents.slice(0, 3).map(ev => (
-                <span key={ev.id} className="yp-mini-dot" style={{ background: getColorForEvent(ev) }}
-                  onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} title={ev.title} />
-              ))}
-            </div>
-          )}
-        </div>
-      );
+      currentRow.push(d);
+      if (currentRow.length === 7) {
+        rows.push(currentRow);
+        currentRow = [];
+      }
     }
+    if (currentRow.length > 0) {
+      while (currentRow.length < 7) currentRow.push(null);
+      rows.push(currentRow);
+    }
+
     return (
       <div key={m} className="yp-mini-month">
         <div className="yp-mini-title">{MONTH_FULL[m]}</div>
-        <div className="yp-mini-header">
+        <div className="yp-mini-header-kw">
+          <div className="yp-kw-label">KW</div>
           {DAYS.map(d => <div key={d} className="yp-mini-day-name">{d}</div>)}
         </div>
-        <div className="yp-mini-grid">{cells}</div>
+        {rows.map((week, wi) => {
+          const firstDayInWeek = week.find(d => d !== null);
+          const kw = firstDayInWeek ? getWeekNumber(new Date(year, m, firstDayInWeek)) : '';
+          return (
+            <div key={wi} className="yp-mini-row-kw">
+              <div className="yp-kw-num">{kw}</div>
+              {week.map((d, di) => {
+                if (d === null) return <div key={di} className="yp-mini-day empty" />;
+                const dayEvents = getEventsForDay(year, m, d);
+                const today = new Date();
+                const isToday = today.getFullYear() === year && today.getMonth() === m && today.getDate() === d;
+                return (
+                  <div key={di} className={`yp-mini-day${isToday ? ' today' : ''}${dayEvents.length ? ' has-events' : ''}`}>
+                    <span className="yp-mini-num">{d}</span>
+                    {dayEvents.length > 0 && (
+                      <div className="yp-mini-dots">
+                        {dayEvents.slice(0, 3).map(ev => (
+                          <span key={ev.id} className="yp-mini-dot" style={{ background: getColorForEvent(ev) }}
+                            onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} title={ev.title} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     );
   }

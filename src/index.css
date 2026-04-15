@@ -412,3 +412,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .yp-mini-dot:hover { transform: scale(1.6); }
 @media (max-width: 968px) { .yp-year-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .yp-year-row { grid-template-columns: 1fr; } }
+
+/* KW in mini calendar */
+.yp-mini-header-kw { display: grid; grid-template-columns: 28px repeat(7, 1fr); gap: 0; margin-bottom: 4px; }
+.yp-mini-row-kw { display: grid; grid-template-columns: 28px repeat(7, 1fr); gap: 1px; }
+.yp-kw-label { font-size: 9px; font-weight: 600; color: var(--text-muted); text-align: center; padding: 2px 0; }
+.yp-kw-num { font-size: 9px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
