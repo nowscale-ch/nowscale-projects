@@ -169,293 +169,338 @@ function EventTooltip({ ev, style }) {
   );
 }
 
-// ── Shared Helpers for Event Bars ──
-function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-}
-
-function isSingleDay(ev) {
-  return !ev.end_date || ev.end_date === ev.start_date;
-}
-
-function getMonthEvents(year, m, events) {
-  const mStart = `${year}-${String(m + 1).padStart(2, '0')}-01`;
-  const mDays = daysInMonth(year, m);
-  const mEnd = `${year}-${String(m + 1).padStart(2, '0')}-${String(mDays).padStart(2, '0')}`;
-  return events.filter(ev => {
-    const start = ev.start_date;
-    const end = ev.end_date || ev.start_date;
-    return start <= mEnd && end >= mStart;
-  });
-}
-
-function getWeekBars(week, year, m, monthEvents) {
-  const bars = [];
-  const weekDates = week.map(d => {
-    if (d === null) return null;
-    return `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  });
-  const multiDayEvents = monthEvents.filter(ev => !isSingleDay(ev));
-  for (const ev of multiDayEvents) {
-    const evStart = ev.start_date;
-    const evEnd = ev.end_date || ev.start_date;
-    let startCol = -1;
-    let endCol = -1;
-    for (let i = 0; i < 7; i++) {
-      if (weekDates[i] && weekDates[i] >= evStart && weekDates[i] <= evEnd) {
-        if (startCol === -1) startCol = i;
-        endCol = i;
-      }
-    }
-    if (startCol === -1) continue;
-    const isStart = weekDates[startCol] === evStart;
-    const isEnd = weekDates[endCol] === evEnd;
-    bars.push({ ev, startCol: startCol + 1, span: endCol - startCol + 1, isStart, isEnd });
-  }
-  return bars;
-}
-
-function getSingleDayEvents(year, m, d, events) {
-  const ds = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  return events.filter(ev => isSingleDay(ev) && ev.start_date === ds);
-}
-
-function buildWeekRows(year, m) {
-  const days = daysInMonth(year, m);
-  const firstDay = (new Date(year, m, 1).getDay() + 6) % 7;
-  const rows = [];
-  let currentRow = [];
-  for (let i = 0; i < firstDay; i++) currentRow.push(null);
-  for (let d = 1; d <= days; d++) {
-    currentRow.push(d);
-    if (currentRow.length === 7) { rows.push(currentRow); currentRow = []; }
-  }
-  if (currentRow.length > 0) {
-    while (currentRow.length < 7) currentRow.push(null);
-    rows.push(currentRow);
-  }
-  return rows;
-}
-
-function assignLanes(weekBars, maxVisible) {
-  const lanes = [];
-  const barLanes = [];
-  for (const bar of weekBars) {
-    let lane = 0;
-    while (true) {
-      if (!lanes[lane]) lanes[lane] = [];
-      const conflict = lanes[lane].some(b =>
-        !(bar.startCol >= b.startCol + b.span || bar.startCol + bar.span <= b.startCol)
-      );
-      if (!conflict) { lanes[lane].push(bar); barLanes.push({ ...bar, lane }); break; }
-      lane++;
-    }
-  }
-  const visible = barLanes.filter(b => b.lane < maxVisible);
-  const hidden = barLanes.length - visible.length;
-  return { visible, hidden };
-}
-
-function renderEventBars({ visible, hidden, maxVisible, onEventClick, barClass }) {
-  if (visible.length === 0) return null;
-  return (
-    <div className={barClass || 'yp-mini-bars'}>
-      {visible.map((bar, bi) => {
-        const color = getColorForEvent(bar.ev);
-        const borderRadius = `${bar.isStart ? '3px' : '0'} ${bar.isEnd ? '3px' : '0'} ${bar.isEnd ? '3px' : '0'} ${bar.isStart ? '3px' : '0'}`;
-        return (
-          <div
-            key={`${bar.ev.id}-${bi}`}
-            className="yp-event-bar"
-            style={{
-              gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
-              gridRow: bar.lane + 1,
-              background: color,
-              borderRadius,
-            }}
-            title={bar.ev.title}
-            onClick={(e) => { e.stopPropagation(); onEventClick(bar.ev); }}
-          >
-            <span className="yp-event-bar-text">{bar.ev.title}</span>
-          </div>
-        );
-      })}
-      {hidden > 0 && (
-        <div className="yp-event-bar-more" style={{ gridColumn: '2 / span 7', gridRow: maxVisible + 1 }}>
-          +{hidden} weitere
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Render a mini-month calendar with event bars (used by YearView and QuarterView)
-function MiniMonth({ year, m, events, onEventClick, onDayClick, className, maxLanes }) {
-  const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-  const rows = buildWeekRows(year, m);
-  const monthEvents = getMonthEvents(year, m, events);
-  const maxVisible = maxLanes || 3;
-
-  return (
-    <div className={className || 'yp-mini-month'}>
-      <div className="yp-mini-title">{MONTH_FULL[m]}</div>
-      <div className="yp-mini-header-kw">
-        <div className="yp-kw-label">KW</div>
-        {DAYS.map(d => <div key={d} className="yp-mini-day-name">{d}</div>)}
-      </div>
-      {rows.map((week, wi) => {
-        const firstDayInWeek = week.find(d => d !== null);
-        const kw = firstDayInWeek ? getWeekNumber(new Date(year, m, firstDayInWeek)) : '';
-        const weekBars = getWeekBars(week, year, m, monthEvents);
-        const { visible, hidden } = assignLanes(weekBars, maxVisible);
-
-        return (
-          <div key={wi} className="yp-mini-week-block">
-            <div className="yp-mini-row-kw">
-              <div className="yp-kw-num">{kw}</div>
-              {week.map((d, di) => {
-                if (d === null) return <div key={di} className="yp-mini-day empty" />;
-                const today = new Date();
-                const isToday = today.getFullYear() === year && today.getMonth() === m && today.getDate() === d;
-                const singleEvents = getSingleDayEvents(year, m, d, events);
-                return (
-                  <div key={di} className={`yp-mini-day${isToday ? ' today' : ''}`}
-                    onClick={onDayClick ? () => onDayClick(`${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`) : undefined}
-                    style={onDayClick ? { cursor: 'pointer' } : undefined}
-                  >
-                    <span className="yp-mini-num">{d}</span>
-                    {singleEvents.length > 0 && (
-                      <div className="yp-mini-dots">
-                        {singleEvents.slice(0, 3).map(ev => (
-                          <span key={ev.id} className="yp-mini-dot" style={{ background: getColorForEvent(ev) }}
-                            onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} title={ev.title} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {renderEventBars({ visible, hidden, maxVisible, onEventClick, barClass: 'yp-mini-bars' })}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Year View (4 months per row, mini calendars with event bars) ──
 function YearView({ year, events, onEventClick }) {
+  const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+  function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  }
+
+  // Get events relevant to a given month
+  function getMonthEvents(m) {
+    const mStart = `${year}-${String(m + 1).padStart(2, '0')}-01`;
+    const mDays = daysInMonth(year, m);
+    const mEnd = `${year}-${String(m + 1).padStart(2, '0')}-${String(mDays).padStart(2, '0')}`;
+    return events.filter(ev => {
+      const start = ev.start_date;
+      const end = ev.end_date || ev.start_date;
+      return start <= mEnd && end >= mStart;
+    });
+  }
+
+  // Check if event is single-day
+  function isSingleDay(ev) {
+    return !ev.end_date || ev.end_date === ev.start_date;
+  }
+
+  // For a given week (array of day numbers or null), compute event bar segments
+  function getWeekBars(week, m, monthEvents) {
+    const bars = [];
+    const weekDates = week.map((d, i) => {
+      if (d === null) return null;
+      return `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    });
+
+    // Only multi-day events get bars
+    const multiDayEvents = monthEvents.filter(ev => !isSingleDay(ev));
+
+    for (const ev of multiDayEvents) {
+      const evStart = ev.start_date;
+      const evEnd = ev.end_date || ev.start_date;
+
+      // Find which columns in this week the event covers
+      let startCol = -1;
+      let endCol = -1;
+
+      for (let i = 0; i < 7; i++) {
+        if (weekDates[i] && weekDates[i] >= evStart && weekDates[i] <= evEnd) {
+          if (startCol === -1) startCol = i;
+          endCol = i;
+        }
+      }
+
+      if (startCol === -1) continue; // event not in this week
+
+      // Determine if this is the true start/end of the event or a continuation
+      const isStart = weekDates[startCol] === evStart;
+      const isEnd = weekDates[endCol] === evEnd;
+
+      bars.push({
+        ev,
+        startCol: startCol + 1, // +1 because grid col 1 is the KW column
+        span: endCol - startCol + 1,
+        isStart,
+        isEnd,
+      });
+    }
+
+    return bars;
+  }
+
+  // Get single-day events for a specific day
+  function getSingleDayEvents(m, d) {
+    const ds = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    return events.filter(ev => {
+      if (!isSingleDay(ev)) return false;
+      return ev.start_date === ds;
+    });
+  }
+
+  function renderMiniMonth(m) {
+    const days = daysInMonth(year, m);
+    const firstDay = (new Date(year, m, 1).getDay() + 6) % 7; // Mo=0
+    const rows = [];
+    let currentRow = [];
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) currentRow.push(null);
+
+    for (let d = 1; d <= days; d++) {
+      currentRow.push(d);
+      if (currentRow.length === 7) {
+        rows.push(currentRow);
+        currentRow = [];
+      }
+    }
+    if (currentRow.length > 0) {
+      while (currentRow.length < 7) currentRow.push(null);
+      rows.push(currentRow);
+    }
+
+    const monthEvents = getMonthEvents(m);
+
+    return (
+      <div key={m} className="yp-mini-month">
+        <div className="yp-mini-title">{MONTH_FULL[m]}</div>
+        <div className="yp-mini-header-kw">
+          <div className="yp-kw-label">KW</div>
+          {DAYS.map(d => <div key={d} className="yp-mini-day-name">{d}</div>)}
+        </div>
+        {rows.map((week, wi) => {
+          const firstDayInWeek = week.find(d => d !== null);
+          const kw = firstDayInWeek ? getWeekNumber(new Date(year, m, firstDayInWeek)) : '';
+          const weekBars = getWeekBars(week, m, monthEvents);
+
+          // Assign lanes to bars (stack them)
+          const lanes = [];
+          const barLanes = [];
+          for (const bar of weekBars) {
+            let lane = 0;
+            while (true) {
+              if (!lanes[lane]) lanes[lane] = [];
+              const conflict = lanes[lane].some(b =>
+                !(bar.startCol >= b.startCol + b.span || bar.startCol + bar.span <= b.startCol)
+              );
+              if (!conflict) {
+                lanes[lane].push(bar);
+                barLanes.push({ ...bar, lane });
+                break;
+              }
+              lane++;
+            }
+          }
+
+          const maxVisibleLanes = 3;
+          const visibleBars = barLanes.filter(b => b.lane < maxVisibleLanes);
+          const hiddenCount = barLanes.length - visibleBars.length;
+
+          return (
+            <div key={wi} className="yp-mini-week-block">
+              {/* Day numbers row */}
+              <div className="yp-mini-row-kw">
+                <div className="yp-kw-num">{kw}</div>
+                {week.map((d, di) => {
+                  if (d === null) return <div key={di} className="yp-mini-day empty" />;
+                  const today = new Date();
+                  const isToday = today.getFullYear() === year && today.getMonth() === m && today.getDate() === d;
+                  const singleEvents = getSingleDayEvents(m, d);
+                  return (
+                    <div key={di} className={`yp-mini-day${isToday ? ' today' : ''}`}>
+                      <span className="yp-mini-num">{d}</span>
+                      {singleEvents.length > 0 && (
+                        <div className="yp-mini-dots">
+                          {singleEvents.slice(0, 3).map(ev => (
+                            <span key={ev.id} className="yp-mini-dot" style={{ background: getColorForEvent(ev) }}
+                              onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} title={ev.title} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Event bars */}
+              {visibleBars.length > 0 && (
+                <div className="yp-mini-bars">
+                  {visibleBars.map((bar, bi) => {
+                    const color = getColorForEvent(bar.ev);
+                    const borderRadius = `${bar.isStart ? '3px' : '0'} ${bar.isEnd ? '3px' : '0'} ${bar.isEnd ? '3px' : '0'} ${bar.isStart ? '3px' : '0'}`;
+                    return (
+                      <div
+                        key={`${bar.ev.id}-${bi}`}
+                        className="yp-event-bar"
+                        style={{
+                          gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
+                          gridRow: bar.lane + 1,
+                          background: color,
+                          borderRadius,
+                        }}
+                        title={bar.ev.title}
+                        onClick={(e) => { e.stopPropagation(); onEventClick(bar.ev); }}
+                      >
+                        <span className="yp-event-bar-text">{bar.ev.title}</span>
+                      </div>
+                    );
+                  })}
+                  {hiddenCount > 0 && (
+                    <div className="yp-event-bar-more" style={{ gridColumn: '2 / span 7', gridRow: maxVisibleLanes + 1 }}>
+                      +{hiddenCount} weitere
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="yp-year-calendar">
       {[0, 1, 2].map(row => (
         <div key={row} className="yp-year-row">
-          {[0, 1, 2, 3].map(col => (
-            <MiniMonth key={row * 4 + col} year={year} m={row * 4 + col} events={events} onEventClick={onEventClick} maxLanes={3} />
-          ))}
+          {[0, 1, 2, 3].map(col => renderMiniMonth(row * 4 + col))}
         </div>
       ))}
     </div>
   );
 }
 
-// ── Quarter View (3 mini-calendars with event bars) ──
+// ── Quarter View ──
 function QuarterView({ year, quarter, events, onEventClick, onDayClick }) {
+  const [hover, setHover] = useState(null);
   const startMonth = (quarter - 1) * 3;
   const months = [startMonth, startMonth + 1, startMonth + 2];
 
   return (
     <div className="yp-quarter-wrap">
-      {months.map(m => (
-        <MiniMonth key={m} year={year} m={m} events={events} onEventClick={onEventClick} onDayClick={onDayClick} className="yp-mini-month yp-quarter-month" maxLanes={4} />
-      ))}
-    </div>
-  );
-}
-
-// ── Month View (large calendar with event bars spanning days) ──
-function MonthView({ year, month, events, onEventClick, onDayClick }) {
-  const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-  const rows = buildWeekRows(year, month);
-  const monthEvents = getMonthEvents(year, month, events);
-  const maxVisible = 4;
-
-  return (
-    <div className="yp-month-large">
-      <div className="yp-month-large-header">
-        <div className="yp-month-large-kw-hdr">KW</div>
-        {DAYS.map(d => <div key={d} className="yp-month-large-day-hdr">{d}</div>)}
-      </div>
-      {rows.map((week, wi) => {
-        const firstDayInWeek = week.find(d => d !== null);
-        const kw = firstDayInWeek ? getWeekNumber(new Date(year, month, firstDayInWeek)) : '';
-        const weekBars = getWeekBars(week, year, month, monthEvents);
-        const { visible, hidden } = assignLanes(weekBars, maxVisible);
+      {months.map(m => {
+        const days = daysInMonth(year, m);
+        const monthEvents = events.filter(ev => {
+          const s = new Date(ev.start_date + 'T00:00:00');
+          const e = ev.end_date ? new Date(ev.end_date + 'T00:00:00') : s;
+          const mStart = new Date(year, m, 1);
+          const mEnd = new Date(year, m, days);
+          return s <= mEnd && e >= mStart;
+        });
 
         return (
-          <div key={wi} className="yp-month-large-week">
-            {/* Day numbers row */}
-            <div className="yp-month-large-days">
-              <div className="yp-month-large-kw">{kw}</div>
-              {week.map((d, di) => {
-                if (d === null) return <div key={di} className="yp-month-large-cell empty" />;
-                const today = new Date();
-                const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
-                const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const singleEvents = getSingleDayEvents(year, month, d, events);
+          <div key={m} className="yp-q-month">
+            <div className="yp-q-month-header">{MONTH_FULL[m]}</div>
+            <div className="yp-q-days">
+              {Array.from({ length: days }, (_, d) => {
+                const date = new Date(year, m, d + 1);
+                const ds = dateStr(date);
+                const dayEvents = monthEvents.filter(ev => {
+                  const s = ev.start_date;
+                  const e = ev.end_date || ev.start_date;
+                  return ds >= s && ds <= e;
+                });
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const isToday = ds === dateStr(new Date());
                 return (
-                  <div key={di} className={`yp-month-large-cell${isToday ? ' today' : ''}`}
-                    onClick={() => onDayClick(ds)}
+                  <div
+                    key={d}
+                    className={`yp-q-day ${isWeekend ? 'yp-q-weekend' : ''} ${isToday ? 'yp-q-today' : ''}`}
+                    onClick={() => dayEvents.length === 0 ? onDayClick(ds) : null}
                   >
-                    <span className="yp-month-large-num">{d}</span>
-                    {singleEvents.length > 0 && (
-                      <div className="yp-mini-dots" style={{ marginTop: 3 }}>
-                        {singleEvents.slice(0, 3).map(ev => (
-                          <span key={ev.id} className="yp-mini-dot" style={{ background: getColorForEvent(ev), width: 7, height: 7 }}
-                            onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} title={ev.title} />
-                        ))}
-                      </div>
-                    )}
+                    <span className="yp-q-day-num">{d + 1}</span>
+                    <div className="yp-q-day-events">
+                      {dayEvents.map(ev => (
+                        <div
+                          key={ev.id}
+                          className="yp-q-event-block"
+                          style={{ background: getColorForEvent(ev) }}
+                          onClick={e => { e.stopPropagation(); onEventClick(ev); }}
+                          onMouseEnter={() => setHover(ev.id)}
+                          onMouseLeave={() => setHover(null)}
+                        >
+                          {hover === ev.id && <EventTooltip ev={ev} style={{ bottom: '100%', left: 0, marginBottom: 4 }} />}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
             </div>
-            {/* Event bars */}
-            {(visible.length > 0 || hidden > 0) && (
-              <div className="yp-month-large-bars">
-                {visible.map((bar, bi) => {
-                  const color = getColorForEvent(bar.ev);
-                  const borderRadius = `${bar.isStart ? '4px' : '0'} ${bar.isEnd ? '4px' : '0'} ${bar.isEnd ? '4px' : '0'} ${bar.isStart ? '4px' : '0'}`;
-                  return (
-                    <div
-                      key={`${bar.ev.id}-${bi}`}
-                      className="yp-event-bar yp-event-bar-lg"
-                      style={{
-                        gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
-                        gridRow: bar.lane + 1,
-                        background: color,
-                        borderRadius,
-                      }}
-                      title={bar.ev.title}
-                      onClick={(e) => { e.stopPropagation(); onEventClick(bar.ev); }}
-                    >
-                      <span className="yp-event-bar-text">{bar.ev.title}</span>
-                    </div>
-                  );
-                })}
-                {hidden > 0 && (
-                  <div className="yp-event-bar-more" style={{ gridColumn: '2 / span 7', gridRow: maxVisible + 1 }}>
-                    +{hidden} weitere
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Month View (Calendar Grid) ──
+function MonthView({ year, month, events, onEventClick, onDayClick }) {
+  const [hover, setHover] = useState(null);
+  const days = daysInMonth(year, month);
+  const firstDay = new Date(year, month, 1);
+  // Monday=0, Sunday=6
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+
+  const cells = [];
+  // Padding before
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  // Padding after
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const todayStr = dateStr(new Date());
+
+  return (
+    <div className="yp-month-grid">
+      <div className="yp-month-header-row">
+        {DAY_NAMES.map(d => <div key={d} className="yp-month-day-header">{d}</div>)}
+      </div>
+      <div className="yp-month-body">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} className="yp-month-cell yp-month-empty" />;
+          const ds = dateStr(new Date(year, month, d));
+          const dayEvents = events.filter(ev => {
+            const s = ev.start_date;
+            const e = ev.end_date || ev.start_date;
+            return ds >= s && ds <= e;
+          });
+          const isToday = ds === todayStr;
+          return (
+            <div key={i} className={`yp-month-cell ${isToday ? 'yp-month-today' : ''}`} onClick={() => onDayClick(ds)}>
+              <span className="yp-month-cell-num">{d}</span>
+              <div className="yp-month-cell-events">
+                {dayEvents.slice(0, 3).map(ev => (
+                  <div
+                    key={ev.id}
+                    className="yp-month-event"
+                    style={{ background: getColorForEvent(ev) }}
+                    onClick={e => { e.stopPropagation(); onEventClick(ev); }}
+                    onMouseEnter={() => setHover(ev.id)}
+                    onMouseLeave={() => setHover(null)}
+                  >
+                    <span className="yp-month-event-label">{ev.title}</span>
+                    {hover === ev.id && <EventTooltip ev={ev} style={{ bottom: '100%', left: 0, marginBottom: 4 }} />}
+                  </div>
+                ))}
+                {dayEvents.length > 3 && <span className="yp-month-more">+{dayEvents.length - 3}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
