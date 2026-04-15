@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { fmtDate, isOverdue } from '../lib/utils';
@@ -14,7 +14,8 @@ export default function ProjectDetail() {
   const [todos, setTodos] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'dashboard';
   const [todoModal, setTodoModal] = useState(null); // null=closed, false=new, object=edit
   const [showDone, setShowDone] = useState(false);
   const [filterPriority, setFilterPriority] = useState('');
@@ -103,17 +104,6 @@ export default function ProjectDetail() {
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="tabs">
-        {['dashboard', 'todos', 'meetings', 'files'].map(tab => (
-          <div key={tab} className={`tab ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
-            {tab === 'dashboard' && '📊 Dashboard'}
-            {tab === 'todos' && <>📋 To-Dos <span className="tab-count">{openTodos.length}</span></>}
-            {tab === 'meetings' && <>📅 Meetings <span className="tab-count">{meetings.length}</span></>}
-            {tab === 'files' && '📁 Dateien'}
-          </div>
-        ))}
       </div>
 
       <div className="content">
