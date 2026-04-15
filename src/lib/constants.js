@@ -8,6 +8,7 @@ export const LABEL_OPTIONS = [
   { value: 'Content', label: 'Content', className: 'label-content' },
   { value: 'SEO', label: 'SEO', className: 'label-seo' },
   { value: 'Ads', label: 'Ads', className: 'label-ads' },
+  { value: 'Social Media', label: 'Social Media', className: 'label-social' },
 ];
 
 export const PRIORITY_COLORS = {

@@ -206,6 +206,7 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
 .label-content { background: #FEF3C7; color: #D97706; }
 .label-seo { background: #D1FAE5; color: #059669; }
 .label-ads { background: #FEE2E2; color: #DC2626; }
+.label-social { background: #FCE7F3; color: #DB2777; }
 
 /* Meeting Card */
 .meeting-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; cursor: pointer; transition: all .2s; }
