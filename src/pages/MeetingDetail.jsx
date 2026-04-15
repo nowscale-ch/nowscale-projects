@@ -25,7 +25,7 @@ export default function MeetingDetail() {
     const [mRes, pRes, tRes, mtRes] = await Promise.all([
       supabase.from('np_meetings').select('*').eq('id', meetingId).single(),
       supabase.from('np_projects').select('*').eq('id', projectId).single(),
-      supabase.from('np_todos').select('*').eq('project_id', projectId).eq('status', 'open').order('sort_order'),
+      supabase.from('np_todos').select('*').eq('project_id', projectId).eq('status', 'done').order('completed_at', { ascending: false }),
       supabase.from('np_meeting_todos').select('*, np_todos(*)').eq('meeting_id', meetingId),
     ]);
     setMeeting(mRes.data);
@@ -166,8 +166,8 @@ export default function MeetingDetail() {
             <textarea className="form-input" value={form.agenda} onChange={e => update('agenda', e.target.value)} placeholder="Agenda-Punkte..." rows={4} />
           </div>
           <div className="form-group">
-            <label className="form-label">Offene To-Dos</label>
-            {openTodos.length === 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Keine offenen Aufgaben</p>}
+            <label className="form-label">Erledigte To-Dos</label>
+            {openTodos.length === 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Keine erledigten Aufgaben</p>}
             {openTodos.map(t => (
               <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                 <input type="checkbox" checked={t.status === 'done'} onChange={() => toggleTodoDone(t)} style={{ accentColor: 'var(--primary)' }} />
