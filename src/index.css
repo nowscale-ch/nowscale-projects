@@ -290,7 +290,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .rich-content { padding: 12px; min-height: 100px; font-size: 13px; line-height: 1.6; color: var(--text); }
 .rich-content:focus { outline: none; }
 .rich-content p { margin-bottom: 8px; }
-.rich-content ul, .rich-content ol { padding-left: 20px; margin-bottom: 8px; }
+.rich-content ul { padding-left: 20px; margin-bottom: 8px; list-style-type: disc; }
+.rich-content ol { padding-left: 20px; margin-bottom: 8px; list-style-type: decimal; }
+.rich-content ul li, .rich-content ol li { display: list-item; color: var(--text); }
+.rich-content ul li::marker, .rich-content ol li::marker { color: var(--text); }
+.ProseMirror ul { list-style-type: disc; padding-left: 20px; }
+.ProseMirror ol { list-style-type: decimal; padding-left: 20px; }
+.ProseMirror li { display: list-item; }
+.ProseMirror li::marker { color: var(--text); }
 .rich-content mark { background: #FEF08A; padding: 0 2px; border-radius: 2px; }
 .rich-content h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
 [data-theme="dark"] .rich-content mark { background: #854D0E; color: #FEF08A; }
