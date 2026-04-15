@@ -304,3 +304,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .project-grid { grid-template-columns: 1fr; }
 }
+
+/* Meeting two-column layout */
+.meeting-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 768px) { .meeting-two-col { grid-template-columns: 1fr; } }

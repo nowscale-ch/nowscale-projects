@@ -235,45 +235,46 @@ export default function MeetingDetail() {
             <RichEditor value={form.agenda} onChange={val => update('agenda', val)} placeholder="Agenda-Punkte..." />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Erledigte Aufgaben seit letztem Meeting</label>
-            {completedTodos.length === 0 && manualItems.length === 0 && (
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Keine erledigten Aufgaben im Zeitraum</p>
-            )}
-            {completedTodos.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ color: 'var(--primary)', fontSize: 14 }}>✅</span>
-                <span className={`priority-dot ${t.priority}`} />
-                <span style={{ fontSize: 13, flex: 1 }}>{t.title}</span>
-                {t.assigned_to && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.assigned_to}</span>}
-                {t.completed_at && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtDate(t.completed_at)}</span>}
+          <div className="meeting-two-col">
+            <div className="form-group">
+              <label className="form-label">Erledigte Aufgaben seit letztem Meeting</label>
+              {completedTodos.length === 0 && manualItems.length === 0 && (
+                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Keine erledigten Aufgaben im Zeitraum</p>
+              )}
+              {completedTodos.map(t => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--primary)', fontSize: 14 }}>✅</span>
+                  <span className={`priority-dot ${t.priority}`} />
+                  <span style={{ fontSize: 13, flex: 1 }}>{t.title}</span>
+                  {t.assigned_to && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.assigned_to}</span>}
+                </div>
+              ))}
+              {manualItems.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--primary)', fontSize: 14 }}>✅</span>
+                  <span style={{ fontSize: 13, flex: 1 }}>{item}</span>
+                  <button onClick={() => removeManualItem(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12 }}>✕</button>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input className="form-input" style={{ flex: 1 }} value={newManualItem} onChange={e => setNewManualItem(e.target.value)} placeholder="Weitere erledigte Aufgabe..." onKeyDown={e => e.key === 'Enter' && addManualItem()} />
+                <button className="btn btn-ghost btn-sm" onClick={addManualItem}>+</button>
               </div>
-            ))}
-            {manualItems.map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ color: 'var(--primary)', fontSize: 14 }}>✅</span>
-                <span style={{ fontSize: 13, flex: 1 }}>{item}</span>
-                <button onClick={() => removeManualItem(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12 }}>✕</button>
-              </div>
-            ))}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <input className="form-input" style={{ flex: 1 }} value={newManualItem} onChange={e => setNewManualItem(e.target.value)} placeholder="Weitere erledigte Aufgabe hinzufügen..." onKeyDown={e => e.key === 'Enter' && addManualItem()} />
-              <button className="btn btn-ghost btn-sm" onClick={addManualItem}>+</button>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">Abklären mit Kunde</label>
-            {customerChecklist.map((item, idx) => (
-              <div key={idx} className={`checklist-item${item.done ? ' checked' : ''}`}>
-                <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(idx)} />
-                <input type="text" value={item.text} readOnly style={item.done ? { textDecoration: 'line-through', color: 'var(--text-muted)' } : {}} />
-                <button onClick={() => removeChecklistItem(idx)}>✕</button>
+            <div className="form-group">
+              <label className="form-label">Abklären mit Kunde</label>
+              {customerChecklist.map((item, idx) => (
+                <div key={idx} className={`checklist-item${item.done ? ' checked' : ''}`}>
+                  <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(idx)} />
+                  <input type="text" value={item.text} readOnly style={item.done ? { textDecoration: 'line-through', color: 'var(--text-muted)' } : {}} />
+                  <button onClick={() => removeChecklistItem(idx)}>✕</button>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input className="form-input" style={{ flex: 1 }} value={newChecklistItem} onChange={e => setNewChecklistItem(e.target.value)} placeholder="Neuer Punkt..." onKeyDown={e => e.key === 'Enter' && addChecklistItem()} />
+                <button className="btn btn-ghost btn-sm" onClick={addChecklistItem}>+</button>
               </div>
-            ))}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <input className="form-input" style={{ flex: 1 }} value={newChecklistItem} onChange={e => setNewChecklistItem(e.target.value)} placeholder="Neuer Punkt..." onKeyDown={e => e.key === 'Enter' && addChecklistItem()} />
-              <button className="btn btn-ghost btn-sm" onClick={addChecklistItem}>+</button>
             </div>
           </div>
 
