@@ -281,6 +281,20 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .login-subtitle { font-size: 13px; color: var(--text-secondary); text-align: center; margin-bottom: 24px; }
 .login-error { background: var(--danger-light); color: var(--danger); padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; }
 
+/* Rich Editor */
+.rich-editor { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.rich-toolbar { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
+.rich-toolbar button { background: none; border: 1px solid transparent; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; color: var(--text); transition: all .15s; }
+.rich-toolbar button:hover { background: var(--bg-dark); }
+.rich-toolbar button.active { background: var(--primary); color: white; border-color: var(--primary); }
+.rich-content { padding: 12px; min-height: 100px; font-size: 13px; line-height: 1.6; color: var(--text); }
+.rich-content:focus { outline: none; }
+.rich-content p { margin-bottom: 8px; }
+.rich-content ul, .rich-content ol { padding-left: 20px; margin-bottom: 8px; }
+.rich-content mark { background: #FEF08A; padding: 0 2px; border-radius: 2px; }
+.rich-content h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+[data-theme="dark"] .rich-content mark { background: #854D0E; color: #FEF08A; }
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar { display: none; }

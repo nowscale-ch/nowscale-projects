@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { fmtDate } from '../lib/utils';
 import { TEAM_MEMBERS } from '../lib/constants';
+import RichEditor from '../components/RichEditor';
 
 export default function MeetingDetail() {
   const { id: projectId, meetingId } = useParams();
@@ -19,6 +20,10 @@ export default function MeetingDetail() {
   // Manual completed items (not linked to To-Do list)
   const [manualItems, setManualItems] = useState([]);
   const [newManualItem, setNewManualItem] = useState('');
+
+  // Customer checklist
+  const [customerChecklist, setCustomerChecklist] = useState([]);
+  const [newChecklistItem, setNewChecklistItem] = useState('');
 
   // New todo inline
   const [newTodoTitle, setNewTodoTitle] = useState('');
@@ -66,6 +71,13 @@ export default function MeetingDetail() {
       } catch { setManualItems([]); }
     }
 
+    // Load customer checklist
+    if (currentMeeting?.customer_checklist) {
+      try {
+        setCustomerChecklist(JSON.parse(currentMeeting.customer_checklist));
+      } catch { setCustomerChecklist([]); }
+    }
+
     setLoading(false);
   }, [meetingId, projectId]);
 
@@ -100,6 +112,20 @@ export default function MeetingDetail() {
     setManualItems(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const addChecklistItem = () => {
+    if (!newChecklistItem.trim()) return;
+    setCustomerChecklist(prev => [...prev, { text: newChecklistItem.trim(), done: false }]);
+    setNewChecklistItem('');
+  };
+
+  const toggleChecklistItem = (idx) => {
+    setCustomerChecklist(prev => prev.map((item, i) => i === idx ? { ...item, done: !item.done } : item));
+  };
+
+  const removeChecklistItem = (idx) => {
+    setCustomerChecklist(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -110,6 +136,7 @@ export default function MeetingDetail() {
         decisions: form.decisions,
         notes: form.notes,
         manual_completed_items: JSON.stringify(manualItems),
+        customer_checklist: JSON.stringify(customerChecklist),
       }).eq('id', meetingId);
       if (error) throw error;
       toast('Gespeichert');
@@ -205,7 +232,7 @@ export default function MeetingDetail() {
           <h3>📋 Vorbereitung</h3>
           <div className="form-group">
             <label className="form-label">Agenda</label>
-            <textarea className="form-input" value={form.agenda} onChange={e => update('agenda', e.target.value)} placeholder="Agenda-Punkte..." rows={4} />
+            <RichEditor value={form.agenda} onChange={val => update('agenda', val)} placeholder="Agenda-Punkte..." />
           </div>
 
           <div className="form-group">
@@ -236,8 +263,23 @@ export default function MeetingDetail() {
           </div>
 
           <div className="form-group">
+            <label className="form-label">Abklären mit Kunde</label>
+            {customerChecklist.map((item, idx) => (
+              <div key={idx} className={`checklist-item${item.done ? ' checked' : ''}`}>
+                <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(idx)} />
+                <input type="text" value={item.text} readOnly style={item.done ? { textDecoration: 'line-through', color: 'var(--text-muted)' } : {}} />
+                <button onClick={() => removeChecklistItem(idx)}>✕</button>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <input className="form-input" style={{ flex: 1 }} value={newChecklistItem} onChange={e => setNewChecklistItem(e.target.value)} placeholder="Neuer Punkt..." onKeyDown={e => e.key === 'Enter' && addChecklistItem()} />
+              <button className="btn btn-ghost btn-sm" onClick={addChecklistItem}>+</button>
+            </div>
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Vorbereitungs-Notizen</label>
-            <textarea className="form-input" value={form.preparation_notes} onChange={e => update('preparation_notes', e.target.value)} placeholder="Notizen zur Vorbereitung..." rows={3} />
+            <RichEditor value={form.preparation_notes} onChange={val => update('preparation_notes', val)} placeholder="Notizen zur Vorbereitung..." />
           </div>
         </div>
 
@@ -246,11 +288,11 @@ export default function MeetingDetail() {
           <h3>📝 Protokoll</h3>
           <div className="form-group">
             <label className="form-label">Freitext-Protokoll</label>
-            <textarea className="form-input" value={form.protocol} onChange={e => update('protocol', e.target.value)} placeholder="Meeting-Notizen, Diskussionen..." rows={8} style={{ minHeight: 200 }} />
+            <RichEditor value={form.protocol} onChange={val => update('protocol', val)} placeholder="Meeting-Notizen, Diskussionen..." />
           </div>
           <div className="form-group">
             <label className="form-label">Beschlüsse / Entscheide</label>
-            <textarea className="form-input" value={form.decisions} onChange={e => update('decisions', e.target.value)} placeholder="Entscheide und Beschlüsse..." rows={4} />
+            <RichEditor value={form.decisions} onChange={val => update('decisions', val)} placeholder="Entscheide und Beschlüsse..." />
           </div>
         </div>
 
@@ -290,7 +332,7 @@ export default function MeetingDetail() {
         {/* Notizen */}
         <div className="section-card">
           <h3>📌 Notizen</h3>
-          <textarea className="form-input" value={form.notes} onChange={e => update('notes', e.target.value)} placeholder="Allgemeine Notizen..." rows={4} />
+          <RichEditor value={form.notes} onChange={val => update('notes', val)} placeholder="Allgemeine Notizen..." />
         </div>
 
         {/* Actions */}
