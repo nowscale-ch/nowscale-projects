@@ -424,37 +424,42 @@ function QuarterView({ year, quarter, events, onEventClick, onDayClick }) {
                 const isToday = dateStr(date) === dateStr(new Date());
                 return (
                   <div key={d} className={`yp-q-day ${isWeekend ? 'yp-q-weekend' : ''} ${isToday ? 'yp-q-today' : ''}`}
-                    onClick={() => onDayClick(dateStr(date))} style={{ minHeight: 20 + lanes.length * 22 }}>
+                    onClick={() => onDayClick(dateStr(date))}>
                     <span className="yp-q-day-num">{d + 1}</span>
                   </div>
                 );
               })}
-              {/* Event bars overlaid */}
+              {/* Event bars overlaid - vertical layout */}
               {lanes.map((lane, li) => lane.map(ev => {
                 const evStart = new Date(Math.max(new Date(ev.start_date + 'T00:00:00'), mStartDate));
                 const evEnd = ev.end_date ? new Date(Math.min(new Date(ev.end_date + 'T00:00:00'), mEndDate)) : evStart;
                 const startDay = evStart.getDate() - 1;
                 const endDay = evEnd.getDate() - 1;
-                const left = `${(startDay / days) * 100}%`;
-                const width = `${((endDay - startDay + 1) / days) * 100}%`;
+                const rowH = 26; // matches min-height of yp-q-day
+                const top = startDay * rowH;
+                const height = (endDay - startDay + 1) * rowH;
                 const color = getColorForEvent(ev);
                 const isStart = ev.start_date === dateStr(evStart);
                 const isEnd = (ev.end_date || ev.start_date) === dateStr(evEnd);
                 return (
                   <div key={ev.id} className="yp-q-bar" title={ev.title}
                     style={{
-                      position: 'absolute', left, width, top: 22 + li * 22,
-                      height: 18, background: color, cursor: 'pointer',
-                      borderRadius: `${isStart ? 4 : 0}px ${isEnd ? 4 : 0}px ${isEnd ? 4 : 0}px ${isStart ? 4 : 0}px`,
-                      display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden',
-                      zIndex: 2,
+                      position: 'absolute',
+                      top, height,
+                      right: 8 + li * 24,
+                      width: 20,
+                      background: color, cursor: 'pointer',
+                      borderRadius: `${isStart ? 4 : 0}px ${isStart ? 4 : 0}px ${isEnd ? 4 : 0}px ${isEnd ? 4 : 0}px`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden', zIndex: 2,
+                      writingMode: 'vertical-rl', textOrientation: 'mixed',
                     }}
                     onClick={e => { e.stopPropagation(); onEventClick(ev); }}
                     onMouseEnter={() => setHover(ev.id)}
                     onMouseLeave={() => setHover(null)}
                   >
-                    <span style={{ fontSize: 9, color: 'white', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
-                    {hover === ev.id && <EventTooltip ev={ev} style={{ bottom: '100%', left: 0, marginBottom: 4 }} />}
+                    <span style={{ fontSize: 8, color: 'white', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                    {hover === ev.id && <EventTooltip ev={ev} style={{ bottom: '100%', right: 0, marginBottom: 4 }} />}
                   </div>
                 );
               }))}
