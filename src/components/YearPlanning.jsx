@@ -391,52 +391,73 @@ function QuarterView({ year, quarter, events, onEventClick, onDayClick }) {
     <div className="yp-quarter-wrap">
       {months.map(m => {
         const days = daysInMonth(year, m);
+        const mStartDate = new Date(year, m, 1);
+        const mEndDate = new Date(year, m, days);
         const monthEvents = events.filter(ev => {
           const s = new Date(ev.start_date + 'T00:00:00');
           const e = ev.end_date ? new Date(ev.end_date + 'T00:00:00') : s;
-          const mStart = new Date(year, m, 1);
-          const mEnd = new Date(year, m, days);
-          return s <= mEnd && e >= mStart;
+          return s <= mEndDate && e >= mStartDate;
         });
+
+        // Assign lanes to avoid overlap
+        const sorted = [...monthEvents].sort((a, b) => a.start_date.localeCompare(b.start_date));
+        const lanes = [];
+        for (const ev of sorted) {
+          const s = new Date(ev.start_date + 'T00:00:00');
+          const e = ev.end_date ? new Date(ev.end_date + 'T00:00:00') : s;
+          let placed = false;
+          for (const lane of lanes) {
+            const last = lane[lane.length - 1];
+            const lastEnd = last.end_date ? new Date(last.end_date + 'T00:00:00') : new Date(last.start_date + 'T00:00:00');
+            if (s > lastEnd) { lane.push(ev); placed = true; break; }
+          }
+          if (!placed) lanes.push([ev]);
+        }
 
         return (
           <div key={m} className="yp-q-month">
             <div className="yp-q-month-header">{MONTH_FULL[m]}</div>
-            <div className="yp-q-days">
+            <div className="yp-q-days" style={{ position: 'relative' }}>
               {Array.from({ length: days }, (_, d) => {
                 const date = new Date(year, m, d + 1);
-                const ds = dateStr(date);
-                const dayEvents = monthEvents.filter(ev => {
-                  const s = ev.start_date;
-                  const e = ev.end_date || ev.start_date;
-                  return ds >= s && ds <= e;
-                });
                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                const isToday = ds === dateStr(new Date());
+                const isToday = dateStr(date) === dateStr(new Date());
                 return (
-                  <div
-                    key={d}
-                    className={`yp-q-day ${isWeekend ? 'yp-q-weekend' : ''} ${isToday ? 'yp-q-today' : ''}`}
-                    onClick={() => dayEvents.length === 0 ? onDayClick(ds) : null}
-                  >
+                  <div key={d} className={`yp-q-day ${isWeekend ? 'yp-q-weekend' : ''} ${isToday ? 'yp-q-today' : ''}`}
+                    onClick={() => onDayClick(dateStr(date))} style={{ minHeight: 20 + lanes.length * 22 }}>
                     <span className="yp-q-day-num">{d + 1}</span>
-                    <div className="yp-q-day-events">
-                      {dayEvents.map(ev => (
-                        <div
-                          key={ev.id}
-                          className="yp-q-event-block"
-                          style={{ background: getColorForEvent(ev) }}
-                          onClick={e => { e.stopPropagation(); onEventClick(ev); }}
-                          onMouseEnter={() => setHover(ev.id)}
-                          onMouseLeave={() => setHover(null)}
-                        >
-                          {hover === ev.id && <EventTooltip ev={ev} style={{ bottom: '100%', left: 0, marginBottom: 4 }} />}
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 );
               })}
+              {/* Event bars overlaid */}
+              {lanes.map((lane, li) => lane.map(ev => {
+                const evStart = new Date(Math.max(new Date(ev.start_date + 'T00:00:00'), mStartDate));
+                const evEnd = ev.end_date ? new Date(Math.min(new Date(ev.end_date + 'T00:00:00'), mEndDate)) : evStart;
+                const startDay = evStart.getDate() - 1;
+                const endDay = evEnd.getDate() - 1;
+                const left = `${(startDay / days) * 100}%`;
+                const width = `${((endDay - startDay + 1) / days) * 100}%`;
+                const color = getColorForEvent(ev);
+                const isStart = ev.start_date === dateStr(evStart);
+                const isEnd = (ev.end_date || ev.start_date) === dateStr(evEnd);
+                return (
+                  <div key={ev.id} className="yp-q-bar" title={ev.title}
+                    style={{
+                      position: 'absolute', left, width, top: 22 + li * 22,
+                      height: 18, background: color, cursor: 'pointer',
+                      borderRadius: `${isStart ? 4 : 0}px ${isEnd ? 4 : 0}px ${isEnd ? 4 : 0}px ${isStart ? 4 : 0}px`,
+                      display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden',
+                      zIndex: 2,
+                    }}
+                    onClick={e => { e.stopPropagation(); onEventClick(ev); }}
+                    onMouseEnter={() => setHover(ev.id)}
+                    onMouseLeave={() => setHover(null)}
+                  >
+                    <span style={{ fontSize: 9, color: 'white', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                    {hover === ev.id && <EventTooltip ev={ev} style={{ bottom: '100%', left: 0, marginBottom: 4 }} />}
+                  </div>
+                );
+              }))}
             </div>
           </div>
         );
