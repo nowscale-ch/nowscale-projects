@@ -169,90 +169,60 @@ function EventTooltip({ ev, style }) {
   );
 }
 
-// ── Year View (Gantt) ──
+// ── Year View (4 months per row, mini calendars) ──
 function YearView({ year, events, onEventClick }) {
-  const [hover, setHover] = useState(null);
+  const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-  // Group events into rows (avoid overlaps)
-  const rows = useMemo(() => {
-    const sorted = [...events].sort((a, b) => a.start_date.localeCompare(b.start_date));
-    const lanes = [];
-    for (const ev of sorted) {
-      const s = new Date(ev.start_date + 'T00:00:00');
-      const e = ev.end_date ? new Date(ev.end_date + 'T00:00:00') : s;
-      let placed = false;
-      for (const lane of lanes) {
-        const last = lane[lane.length - 1];
-        const lastEnd = last.end_date ? new Date(last.end_date + 'T00:00:00') : new Date(last.start_date + 'T00:00:00');
-        if (s > lastEnd) { lane.push(ev); placed = true; break; }
-      }
-      if (!placed) lanes.push([ev]);
-    }
-    return lanes;
-  }, [events]);
-
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd = new Date(year, 11, 31);
-  const totalDays = Math.round((yearEnd - yearStart) / 86400000) + 1;
-
-  function getPosition(ev) {
-    const s = new Date(Math.max(new Date(ev.start_date + 'T00:00:00'), yearStart));
-    const e = ev.end_date ? new Date(Math.min(new Date(ev.end_date + 'T00:00:00'), yearEnd)) : s;
-    const startDay = Math.round((s - yearStart) / 86400000);
-    const span = Math.round((e - s) / 86400000) + 1;
-    return { left: `${(startDay / totalDays) * 100}%`, width: `${Math.max((span / totalDays) * 100, 0.5)}%` };
+  function getEventsForDay(y, m, d) {
+    const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    return events.filter(ev => {
+      const start = ev.start_date;
+      const end = ev.end_date || ev.start_date;
+      return dateStr >= start && dateStr <= end;
+    });
   }
 
-  // Month column positions
-  const monthPositions = [];
-  for (let m = 0; m < 12; m++) {
-    const mStart = new Date(year, m, 1);
-    const mDays = daysInMonth(year, m);
-    const offset = Math.round((mStart - yearStart) / 86400000);
-    monthPositions.push({ left: `${(offset / totalDays) * 100}%`, width: `${(mDays / totalDays) * 100}%` });
+  function renderMiniMonth(m) {
+    const days = daysInMonth(year, m);
+    const firstDay = (new Date(year, m, 1).getDay() + 6) % 7; // Mo=0
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(<div key={`e${i}`} className="yp-mini-day empty" />);
+    for (let d = 1; d <= days; d++) {
+      const dayEvents = getEventsForDay(year, m, d);
+      const today = new Date();
+      const isToday = today.getFullYear() === year && today.getMonth() === m && today.getDate() === d;
+      cells.push(
+        <div key={d} className={`yp-mini-day${isToday ? ' today' : ''}${dayEvents.length ? ' has-events' : ''}`}>
+          <span className="yp-mini-num">{d}</span>
+          {dayEvents.length > 0 && (
+            <div className="yp-mini-dots">
+              {dayEvents.slice(0, 3).map(ev => (
+                <span key={ev.id} className="yp-mini-dot" style={{ background: getColorForEvent(ev) }}
+                  onClick={(e) => { e.stopPropagation(); onEventClick(ev); }} title={ev.title} />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div key={m} className="yp-mini-month">
+        <div className="yp-mini-title">{MONTH_FULL[m]}</div>
+        <div className="yp-mini-header">
+          {DAYS.map(d => <div key={d} className="yp-mini-day-name">{d}</div>)}
+        </div>
+        <div className="yp-mini-grid">{cells}</div>
+      </div>
+    );
   }
 
   return (
-    <div className="yp-year-wrap">
-      {/* Month headers */}
-      <div className="yp-year-header">
-        {MONTH_NAMES.map((m, i) => (
-          <div key={i} className="yp-month-col" style={{ left: monthPositions[i].left, width: monthPositions[i].width }}>{m}</div>
-        ))}
-      </div>
-      {/* Grid lines */}
-      <div className="yp-year-grid" style={{ minHeight: Math.max(rows.length * 32 + 8, 80) }}>
-        {monthPositions.map((pos, i) => (
-          <div key={i} className="yp-grid-line" style={{ left: pos.left }} />
-        ))}
-        {/* Event rows */}
-        {rows.map((lane, li) => (
-          lane.map(ev => {
-            const pos = getPosition(ev);
-            const color = getColorForEvent(ev);
-            const isSingle = !ev.end_date || ev.end_date === ev.start_date;
-            return (
-              <div
-                key={ev.id}
-                className={`yp-bar ${isSingle ? 'yp-bar-dot' : ''}`}
-                style={{
-                  left: pos.left,
-                  width: isSingle ? '16px' : pos.width,
-                  top: li * 32 + 4,
-                  background: color,
-                }}
-                onClick={() => onEventClick(ev)}
-                onMouseEnter={() => setHover(ev.id)}
-                onMouseLeave={() => setHover(null)}
-              >
-                {!isSingle && <span className="yp-bar-label">{ev.title}</span>}
-                {hover === ev.id && <EventTooltip ev={ev} style={{ top: '100%', left: 0, marginTop: 4 }} />}
-              </div>
-            );
-          })
-        ))}
-        {rows.length === 0 && <div className="yp-empty">Keine Events in {year}</div>}
-      </div>
+    <div className="yp-year-calendar">
+      {[0, 1, 2].map(row => (
+        <div key={row} className="yp-year-row">
+          {[0, 1, 2, 3].map(col => renderMiniMonth(row * 4 + col))}
+        </div>
+      ))}
     </div>
   );
 }
