@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { fmtDate, isOverdue } from '../lib/utils';
 import { LABEL_OPTIONS } from '../lib/constants';
 import TodoModal from '../components/TodoModal';
+import YearPlanning from '../components/YearPlanning';
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -282,6 +283,11 @@ export default function ProjectDetail() {
               ))}
             </div>
           </>
+        )}
+
+        {/* PLANNING TAB */}
+        {activeTab === 'planning' && (
+          <YearPlanning projectId={id} />
         )}
 
         {/* FILES TAB */}
